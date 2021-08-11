@@ -40,16 +40,16 @@ CEF_CONFIG = {
 
 # CEF format from https://www.protect724.hpe.com/docs/DOC-1072
 CEF_FORMAT = (
-    "CEF:%(version)s|%(device_vendor)s|%(device_product)s|"
+    "%(event_date)s %(device_name)s CEF:%(version)s|%(device_vendor)s|%(device_product)s|"
     "%(device_version)s|%(device_event_class_id)s|%(name)s|%(severity)s|"
 )
-
 
 CEF_MAPPING = {
     # This is used for mapping CEF header prefix and extension to json returned by server
     # CEF header prefix to json mapping
     # Format
     # CEF_header_prefix: JSON_key
+    "created_at": "rt",
     "device_event_class_id": "type",
     "name": "name",
     "severity": "severity",
@@ -59,7 +59,6 @@ CEF_MAPPING = {
     "source": "suser",
     "when": "end",
     "user_id": "duid",
-    "created_at": "rt",
     "full_file_path": "filePath",
     "location": "dhost",
 }
@@ -69,7 +68,6 @@ SIEM_LOGGER = logging.getLogger("SIEM")
 SIEM_LOGGER.setLevel(logging.INFO)
 SIEM_LOGGER.propagate = False
 logging.basicConfig(format="%(message)s")
-
 
 def write_json_format(results):
     """Write JSON format data.
@@ -81,7 +79,7 @@ def write_json_format(results):
         update_cef_keys(i)
         name_mapping.update_fields(log, i)
         SIEM_LOGGER.info(json.dumps(i, ensure_ascii=False, indent=4) + u"\n")
-
+        
 
 def write_keyvalue_format(results):
     """Write key value format data.
@@ -183,6 +181,7 @@ def extract_prefix_fields(data):
     Returns:
         fields {dict} -- fields object
     """
+    
     name_field = CEF_MAPPING["name"]
     device_event_class_id_field = CEF_MAPPING["device_event_class_id"]
     severity_field = CEF_MAPPING["severity"]
@@ -200,6 +199,8 @@ def extract_prefix_fields(data):
     data.pop(severity_field, None)
 
     fields = {
+        "event_date": data.get("created_at"),
+        "device_name": data.get("location"),
         "name": name,
         "device_event_class_id": device_event_class_id,
         "severity": severity,
@@ -234,7 +235,6 @@ def format_cef(data):
     """
     fields = extract_prefix_fields(data)
     msg = CEF_FORMAT % fields
-
     update_cef_keys(data)
     for index, (key, value) in enumerate(data.items()):
         value = format_extension(value)
